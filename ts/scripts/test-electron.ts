@@ -4,17 +4,24 @@
 import { execFileSync } from 'child_process';
 import { join } from 'path';
 
+const isWindows = process.platform === 'win32';
+
 const ROOT_DIR = join(__dirname, '..', '..');
 
 const ELECTRON = join(
   ROOT_DIR,
   'node_modules',
   '.bin',
-  process.platform === 'win32' ? 'electron.cmd' : 'electron'
+  isWindows ? 'electron.cmd' : 'electron'
 );
 
 const MAX_RETRIES = 3;
 const RETRIABLE_SIGNALS = ['SIGBUS'];
+
+// Windows paths which contain spaces need to be wrapped in double quotes
+function escapeWin(path: string): string {
+  return isWindows ? `"${path}"` : path;
+}
 
 function launchElectron(attempt: number): string {
   if (attempt > MAX_RETRIES) {
@@ -25,7 +32,7 @@ function launchElectron(attempt: number): string {
   console.log(`Launching electron for tests, attempt #${attempt}...`);
 
   try {
-    const stdout = execFileSync(ELECTRON, [ROOT_DIR], {
+    const stdout = execFileSync(escapeWin(ELECTRON), [escapeWin(ROOT_DIR)], {
       cwd: ROOT_DIR,
       env: {
         ...process.env,
@@ -36,6 +43,7 @@ function launchElectron(attempt: number): string {
         TEST_QUIT_ON_COMPLETE: 'on',
       },
       encoding: 'utf8',
+      shell: isWindows,
     });
     return stdout;
   } catch (error) {
